@@ -23,10 +23,10 @@ button,input,select{font:inherit;color:inherit}
 
 /* top bar */
 .bar{background:var(--ink);color:#fff;position:sticky;top:0;z-index:10}
-.bar-in{max-width:1120px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.bar-in{max-width:1320px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
 .bar h1{margin:0;font-size:1.2rem;font-weight:600;letter-spacing:.01em}
 .demo-tag{background:var(--amber);color:var(--ink);font-size:.8rem;font-weight:600;padding:2px 10px;border-radius:999px;margin-left:8px;white-space:nowrap}
-.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 60px}
+.wrap{max-width:1320px;margin:0 auto;padding:20px 16px 60px}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid transparent;border-radius:8px;padding:7px 14px;font-weight:500;cursor:pointer;background:none;text-decoration:none;white-space:nowrap;min-height:40px}
@@ -54,14 +54,20 @@ button,input,select{font:inherit;color:inherit}
 
 /* table */
 .table-card{overflow:hidden}
-table{width:100%;border-collapse:collapse}
-thead th{background:var(--sky);text-align:left;font-weight:600;padding:11px 14px;white-space:nowrap}
-tbody td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:middle}
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.94rem}
+td.nw{white-space:nowrap}
+td.delay{min-width:150px}
+.tag{display:inline-block;background:var(--sky-soft);border:1px solid var(--line);border-radius:6px;padding:0 8px;margin:2px 4px 2px 0;font-size:.88rem;line-height:1.5}
+thead th{background:var(--sky);text-align:left;font-weight:600;padding:10px 10px;white-space:nowrap}
+tbody td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
 tbody tr:hover{background:var(--sky-soft)}
 td.id{font-weight:600;font-variant-numeric:tabular-nums}
-.chip{display:inline-block;background:var(--sky);border-radius:999px;padding:1px 12px;font-size:.92rem;font-weight:500}
+.chip{display:inline-block;background:var(--sky);border-radius:999px;padding:0 10px;font-size:.88rem;font-weight:500;white-space:nowrap}
 td.act{text-align:right;white-space:nowrap}
-td.act .btn{margin-left:6px}
+td.act .btn{margin-left:4px;padding:0;width:38px;min-height:38px}
+.lbl{display:none}
+@media (min-width:1360px){ td.act .btn{width:auto;padding:5px 12px} .lbl{display:inline} }
 .table-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--line);background:#fff}
 .count{color:var(--muted);font-size:.95rem}
 .pager{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -129,16 +135,21 @@ fieldset.multi .hint{font-weight:400}
   .toolbar{grid-template-columns:1fr 1fr}
   .toolbar .field:first-child{grid-column:1/-1}
 }
-@media (max-width:720px){
-  .bar h1{font-size:1.05rem}
+@media (max-width:980px){
   thead{display:none}
   table,tbody,tr,td{display:block;width:100%}
+  td.delay{min-width:0;text-align:right}
+  td.delay::before{align-self:flex-start}
   tbody tr{padding:12px 14px;border-top:1px solid var(--line)}
-  tbody td{border:none;padding:2px 0;display:flex;gap:10px;justify-content:space-between;align-items:center}
+  tbody td{border:none;padding:2px 0;display:flex;gap:10px;justify-content:space-between;align-items:center;white-space:normal}
   tbody td::before{content:attr(data-label);color:var(--muted);font-size:.88rem;flex:none}
   td.act{justify-content:flex-end;padding-top:10px;gap:8px}
   td.act::before{display:none}
-  td.act .btn{margin-left:0;flex:1}
+  td.act .btn{margin-left:0;flex:1;width:auto;padding:7px 14px}
+  .lbl{display:inline}
+}
+@media (max-width:720px){
+  .bar h1{font-size:1.05rem}
   .pager .num{display:none}
   .pager .where{display:inline}
   .form-grid{grid-template-columns:1fr}
@@ -206,12 +217,12 @@ fieldset.multi .hint{font-weight:400}
 
     <div class="card table-card">
       <div id="loading" class="loading"><span class="spin"></span>กำลังโหลดข้อมูล…</div>
-      <table id="tbl" hidden>
+      <div class="tscroll"><table id="tbl" hidden>
         <thead>
-          <tr><th>เลขประจำตัว</th><th>ชั้นเรียน</th><th>คำนำหน้า</th><th>ชื่อ</th><th>นามสกุล</th><th style="text-align:right">จัดการ</th></tr>
+          <tr><th>เลขประจำตัว</th><th>ชั้นเรียน</th><th>คำนำหน้า</th><th>ชื่อ</th><th>นามสกุล</th><th>พัฒนาการช้าด้าน</th><th>ผู้มารับ-ส่ง</th><th>ผู้ปกครอง/ผู้ดูแล</th><th>รายได้ ผปค.</th><th style="text-align:right">จัดการ</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
-      </table>
+      </table></div>
       <div id="empty" class="empty" hidden>
         <strong>ไม่พบนักเรียนที่ตรงกับการค้นหา</strong>
         ลองเปลี่ยนคำค้นหา หรือเลือกชั้นเรียนอื่น
@@ -236,23 +247,20 @@ fieldset.multi .hint{font-weight:400}
           <input class="input" id="f_id" readonly>
         </div>
         <div class="field">
-          <label for="f_cls">ชั้นเรียน <span class="req">*</span></label>
-          <input class="input" id="f_cls" list="clsList" required>
-          <datalist id="clsList"></datalist>
-          <div class="err-msg" id="e_cls"></div>
+          <label for="f_cls">ชั้นเรียน</label>
+          <input class="input" id="f_cls" readonly>
         </div>
         <div class="field">
           <label for="f_title">คำนำหน้า</label>
-          <select class="select" id="f_title"></select>
+          <input class="input" id="f_title" readonly>
         </div>
         <div class="field">
-          <label for="f_first">ชื่อ <span class="req">*</span></label>
-          <input class="input" id="f_first" required>
-          <div class="err-msg" id="e_first"></div>
+          <label for="f_first">ชื่อ</label>
+          <input class="input" id="f_first" readonly>
         </div>
         <div class="field full">
           <label for="f_last">นามสกุล</label>
-          <input class="input" id="f_last">
+          <input class="input" id="f_last" readonly>
         </div>
 
         <p class="group-title">ข้อมูลเพิ่มเติม</p>
@@ -261,16 +269,19 @@ fieldset.multi .hint{font-weight:400}
           <div class="checks" id="f_delay"></div>
         </fieldset>
         <div class="field">
-          <label for="f_pickup">ผู้มารับ-ส่ง</label>
-          <select class="select" id="f_pickup"></select>
+          <label for="f_pickup">ผู้มารับ-ส่ง <span class="req">*</span></label>
+          <select class="select" id="f_pickup" required></select>
+          <div class="err-msg" id="e_pickup"></div>
         </div>
         <div class="field">
-          <label for="f_guardian">ผู้ปกครอง/ผู้ดูแล</label>
-          <select class="select" id="f_guardian"></select>
+          <label for="f_guardian">ผู้ปกครอง/ผู้ดูแล <span class="req">*</span></label>
+          <select class="select" id="f_guardian" required></select>
+          <div class="err-msg" id="e_guardian"></div>
         </div>
         <div class="field">
-          <label for="f_income">รายได้ ผปค.</label>
-          <select class="select" id="f_income"></select>
+          <label for="f_income">รายได้ ผปค. <span class="req">*</span></label>
+          <select class="select" id="f_income" required></select>
+          <div class="err-msg" id="e_income"></div>
         </div>
       </div>
       <div class="form-actions">
@@ -306,7 +317,7 @@ fieldset.multi .hint{font-weight:400}
    เว้นว่างไว้ = โหมดตัวอย่าง (ข้อมูลทดลอง ไม่บันทึกจริง)
    ============================================================ */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycby_InezjI9jeZlGthbUZb7Bf2K53XaeDZX-PvaN-wnsL1CAL7b3BVGFuAqnNMtHk9SQYA/exec'   // เช่น 'https://script.google.com/macros/s/AKfycb.../exec'
+  API_URL: 'https://script.google.com/macros/s/AKfycbyWQXeKPSk-6_FQaF4e4n_q9_hoG2iCjeyurZhDNnqYtriYPDYElj2UWUuOKgodaWmRqA/exec'   // เช่น 'https://script.google.com/macros/s/AKfycb.../exec'
 };
 
 /* ตัวเลือกใน dropdown (แก้ไขได้ที่นี่ ควรตรงกับ dropdown ใน Google Sheet) */
@@ -427,7 +438,6 @@ function buildClassFilter(){
   const cur = $('clsFilter').value;
   $('clsFilter').innerHTML = '<option value="">ทุกชั้นเรียน</option>' + classes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   $('clsFilter').value = classes.includes(cur) ? cur : '';
-  $('clsList').innerHTML = classes.map(c => `<option value="${esc(c)}">`).join('');
 }
 
 /* ---------- list ---------- */
@@ -443,6 +453,12 @@ function applyFilter(keepPage){
   if (!keepPage) page = 1;
   renderList();
 }
+
+const plain = v => v ? esc(v) : '<span class="nil">—</span>';
+const delayCell = v => {
+  const items = splitMulti(v);
+  return items.length ? items.map(x => `<span class="tag">${esc(x)}</span>`).join('') : '<span class="nil">—</span>';
+};
 
 function renderList(){
   $('loading').hidden = true;
@@ -460,16 +476,20 @@ function renderList(){
   const rows = filtered.slice(start, start + pageSize);
   $('tbody').innerHTML = rows.map(s => `
     <tr>
-      <td class="id" data-label="เลขประจำตัว">${esc(s.id)}</td>
-      <td data-label="ชั้นเรียน"><span class="chip">${esc(s.cls) || '—'}</span></td>
-      <td data-label="คำนำหน้า">${esc(s.title)}</td>
-      <td data-label="ชื่อ">${esc(s.first)}</td>
-      <td data-label="นามสกุล">${esc(s.last)}</td>
+      <td class="id nw" data-label="เลขประจำตัว">${esc(s.id)}</td>
+      <td class="nw" data-label="ชั้นเรียน"><span class="chip">${esc(s.cls) || '—'}</span></td>
+      <td class="nw" data-label="คำนำหน้า">${esc(s.title)}</td>
+      <td class="nw" data-label="ชื่อ">${esc(s.first)}</td>
+      <td class="nw" data-label="นามสกุล">${esc(s.last)}</td>
+      <td class="delay" data-label="พัฒนาการช้าด้าน">${delayCell(s.delay)}</td>
+      <td data-label="ผู้มารับ-ส่ง">${plain(s.pickup)}</td>
+      <td data-label="ผู้ปกครอง/ผู้ดูแล">${plain(s.guardian)}</td>
+      <td data-label="รายได้ ผปค.">${plain(s.income)}</td>
       <td class="act">
-        <button class="btn btn-view" data-act="view" data-id="${esc(s.id)}" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>ดู</button>
-        <button class="btn btn-edit" data-act="edit" data-id="${esc(s.id)}" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>แก้ไข</button>
+        <button class="btn btn-view" data-act="view" data-id="${esc(s.id)}" type="button" title="ดูข้อมูล" aria-label="ดูข้อมูล">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">ดู</span></button>
+        <button class="btn btn-edit" data-act="edit" data-id="${esc(s.id)}" type="button" title="แก้ไขข้อมูล" aria-label="แก้ไขข้อมูล">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg><span class="lbl">แก้ไข</span></button>
       </td>
     </tr>`).join('');
 
@@ -532,25 +552,32 @@ function renderEdit(id){
   $('f_cls').value = s.cls;
   $('f_first').value = s.first;
   $('f_last').value = s.last;
-  fillSelect($('f_title'), OPTIONS.title, s.title);
+  $('f_title').value = s.title;
   fillChecks($('f_delay'), OPTIONS.delay, s.delay);
-  fillSelect($('f_pickup'), OPTIONS.pickup, s.pickup, '— ไม่ระบุ —');
-  fillSelect($('f_guardian'), OPTIONS.guardian, s.guardian, '— ไม่ระบุ —');
-  fillSelect($('f_income'), OPTIONS.income, s.income, '— ไม่ระบุ —');
-  $('e_cls').textContent = ''; $('e_first').textContent = '';
+  fillSelect($('f_pickup'), OPTIONS.pickup, s.pickup, '— เลือก —');
+  fillSelect($('f_guardian'), OPTIONS.guardian, s.guardian, '— เลือก —');
+  fillSelect($('f_income'), OPTIONS.income, s.income, '— เลือก —');
+  ['pickup','guardian','income'].forEach(k => $('e_' + k).textContent = '');
   $('saveBtn').disabled = false; $('saveBtn').textContent = 'บันทึกข้อมูล';
 }
 
 async function saveEdit(ev){
   ev.preventDefault();
-  const v = id => $(id).value.trim();
-  $('e_cls').textContent = v('f_cls') ? '' : 'กรุณากรอกชั้นเรียน';
-  $('e_first').textContent = v('f_first') ? '' : 'กรุณากรอกชื่อ';
-  if (!v('f_cls') || !v('f_first')) return;
+  const required = { pickup:'กรุณาเลือกผู้มารับ-ส่ง', guardian:'กรุณาเลือกผู้ปกครอง/ผู้ดูแล', income:'กรุณาเลือกรายได้ ผปค.' };
+  let ok = true;
+  Object.keys(required).forEach(k => {
+    const empty = !$('f_' + k).value;
+    $('e_' + k).textContent = empty ? required[k] : '';
+    if (empty) ok = false;
+  });
+  if (!ok){ toast('กรุณากรอกข้อมูลที่จำเป็นให้ครบ', 'err'); return; }
 
+  // class / title / names are read-only: keep the stored values
+  const orig = students.find(x => x.id === $('f_id').value);
   const s = {
-    id: v('f_id'), cls: v('f_cls'), title: $('f_title').value, first: v('f_first'), last: v('f_last'),
-    delay: [...document.querySelectorAll('#f_delay input:checked')].map(i => i.value).join(', '), pickup: $('f_pickup').value, guardian: $('f_guardian').value, income: $('f_income').value
+    ...orig,
+    delay: [...document.querySelectorAll('#f_delay input:checked')].map(i => i.value).join(', '),
+    pickup: $('f_pickup').value, guardian: $('f_guardian').value, income: $('f_income').value
   };
   $('saveBtn').disabled = true; $('saveBtn').textContent = 'กำลังบันทึก…';
   try {
