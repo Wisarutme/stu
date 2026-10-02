@@ -106,6 +106,14 @@ dl.info dd{font-weight:500}
 .req{color:var(--danger)}
 .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
 .err-msg{color:var(--danger);font-size:.88rem;min-height:1.2em}
+fieldset.multi{border:1.5px solid var(--line);border-radius:10px;margin:0;padding:10px 14px 12px;min-width:0}
+fieldset.multi legend{font-size:.85rem;color:var(--muted);font-weight:500;padding:0 6px}
+fieldset.multi .hint{font-weight:400}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:6px 4px;border-radius:8px;cursor:pointer}
+.check:hover{background:var(--sky-soft)}
+.check input{width:20px;height:20px;margin:3px 0 0;accent-color:var(--blue);flex:none}
+@media (max-width:720px){ .checks{grid-template-columns:1fr} }
 
 /* login */
 .login{max-width:380px;margin:50px auto;padding:26px}
@@ -248,10 +256,10 @@ dl.info dd{font-weight:500}
         </div>
 
         <p class="group-title">ข้อมูลเพิ่มเติม</p>
-        <div class="field full">
-          <label for="f_delay">พัฒนาการช้าด้าน</label>
-          <select class="select" id="f_delay"></select>
-        </div>
+        <fieldset class="multi full">
+          <legend>พัฒนาการช้าด้าน <span class="hint">(เลือกได้หลายข้อ หรือไม่เลือกเลยก็ได้)</span></legend>
+          <div class="checks" id="f_delay"></div>
+        </fieldset>
         <div class="field">
           <label for="f_pickup">ผู้มารับ-ส่ง</label>
           <select class="select" id="f_pickup"></select>
@@ -298,7 +306,7 @@ dl.info dd{font-weight:500}
    เว้นว่างไว้ = โหมดตัวอย่าง (ข้อมูลทดลอง ไม่บันทึกจริง)
    ============================================================ */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycby_InezjI9jeZlGthbUZb7Bf2K53XaeDZX-PvaN-wnsL1CAL7b3BVGFuAqnNMtHk9SQYA/exec'   // เช่น 'https://script.google.com/macros/s/AKfycb.../exec'
+  API_URL: ''   // เช่น 'https://script.google.com/macros/s/AKfycb.../exec'
 };
 
 /* ตัวเลือกใน dropdown (แก้ไขได้ที่นี่ ควรตรงกับ dropdown ใน Google Sheet) */
@@ -492,7 +500,7 @@ function openView(id){
   $('dlgSub').textContent = `เลขประจำตัว ${s.id} · ชั้น ${s.cls || '—'}`;
   const fields = ['id','cls','title','first','last','delay','pickup','guardian','income'];
   $('dlgInfo').innerHTML = fields.map(k =>
-    `<dt>${LABELS[k]}</dt><dd>${s[k] ? esc(s[k]) : '<span class="nil">ยังไม่ระบุ</span>'}</dd>`).join('');
+    `<dt>${LABELS[k]}</dt><dd>${s[k] ? (k === 'delay' ? splitMulti(s[k]).map(esc).join('<br>') : esc(s[k])) : '<span class="nil">ยังไม่ระบุ</span>'}</dd>`).join('');
   $('viewDlg').showModal();
 }
 
@@ -505,6 +513,17 @@ function fillSelect(el, list, current, blankLabel){
   el.value = current || '';
 }
 
+/* multi-select values are stored in one cell as "a, b, c" (same as Google Sheets multi-select dropdown chips) */
+const splitMulti = v => String(v || '').split(/\s*,\s*/).map(x => x.trim()).filter(Boolean);
+
+function fillChecks(el, list, currentStr){
+  const cur = splitMulti(currentStr);
+  const opts = [...list];
+  cur.forEach(c => { if (!opts.includes(c)) opts.push(c); });   // keep values already in the sheet
+  el.innerHTML = opts.map(o =>
+    `<label class="check"><input type="checkbox" value="${esc(o)}" ${cur.includes(o) ? 'checked' : ''}><span>${esc(o)}</span></label>`).join('');
+}
+
 function renderEdit(id){
   const s = students.find(x => x.id === id);
   if (!s){ toast('ไม่พบนักเรียนรหัสนี้', 'err'); location.hash = '#/'; return; }
@@ -514,7 +533,7 @@ function renderEdit(id){
   $('f_first').value = s.first;
   $('f_last').value = s.last;
   fillSelect($('f_title'), OPTIONS.title, s.title);
-  fillSelect($('f_delay'), OPTIONS.delay, s.delay, '— ไม่ระบุ —');
+  fillChecks($('f_delay'), OPTIONS.delay, s.delay);
   fillSelect($('f_pickup'), OPTIONS.pickup, s.pickup, '— ไม่ระบุ —');
   fillSelect($('f_guardian'), OPTIONS.guardian, s.guardian, '— ไม่ระบุ —');
   fillSelect($('f_income'), OPTIONS.income, s.income, '— ไม่ระบุ —');
@@ -531,7 +550,7 @@ async function saveEdit(ev){
 
   const s = {
     id: v('f_id'), cls: v('f_cls'), title: $('f_title').value, first: v('f_first'), last: v('f_last'),
-    delay: $('f_delay').value, pickup: $('f_pickup').value, guardian: $('f_guardian').value, income: $('f_income').value
+    delay: [...document.querySelectorAll('#f_delay input:checked')].map(i => i.value).join(', '), pickup: $('f_pickup').value, guardian: $('f_guardian').value, income: $('f_income').value
   };
   $('saveBtn').disabled = true; $('saveBtn').textContent = 'กำลังบันทึก…';
   try {
