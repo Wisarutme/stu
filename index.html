@@ -4,10 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ระบบจัดการข้อมูลนักเรียน</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<!-- font loads without blocking first paint (Tahoma/Sarabun fallback shows meanwhile) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600&display=swap"></noscript>
 <style>
 :root{
   --ink:#14304A; --blue:#1E6FB8; --blue-dark:#165a97; --sky:#DCEBF7; --sky-soft:#F2F8FD;
@@ -25,6 +28,7 @@ button,input,select{font:inherit;color:inherit}
 .bar{background:var(--ink);color:#fff;position:sticky;top:0;z-index:10}
 .bar-in{max-width:1320px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
 .bar h1{margin:0;font-size:1.2rem;font-weight:600;letter-spacing:.01em}
+.bar-actions{display:flex;gap:8px;flex-wrap:wrap}
 .demo-tag{background:var(--amber);color:var(--ink);font-size:.8rem;font-weight:600;padding:2px 10px;border-radius:999px;margin-left:8px;white-space:nowrap}
 .wrap{max-width:1320px;margin:0 auto;padding:20px 16px 60px}
 
@@ -91,7 +95,7 @@ dialog::backdrop{background:rgba(20,48,74,.55)}
 .dlg-x{border:none;background:none;font-size:1.6rem;line-height:1;cursor:pointer;padding:2px 8px;border-radius:8px}
 .dlg-x:hover{background:#fff}
 .dlg-body{padding:18px 20px;overflow:auto;max-height:62vh}
-.who{font-size:1.3rem;font-weight:700;margin:0 0 2px}
+.who{font-size:1.3rem;font-weight:600;margin:0 0 2px}
 .who-sub{color:var(--muted);margin:0 0 14px}
 dl.info{display:grid;grid-template-columns:170px 1fr;margin:0;border-top:1px solid var(--line)}
 dl.info dt,dl.info dd{margin:0;padding:9px 0;border-bottom:1px solid var(--line)}
@@ -166,10 +170,16 @@ fieldset.multi .hint{font-weight:400}
 <header class="bar">
   <div class="bar-in">
     <h1>ระบบจัดการข้อมูลนักเรียน<span class="demo-tag" id="demoTag" hidden>โหมดตัวอย่าง</span></h1>
-    <button class="btn btn-excel" id="exportBtn" type="button" hidden>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
-      ส่งออก Excel
-    </button>
+    <div class="bar-actions">
+      <button class="btn btn-excel" id="refreshBtn" type="button" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>
+        รีเฟรช
+      </button>
+      <button class="btn btn-excel" id="exportBtn" type="button" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        ส่งออก Excel
+      </button>
+    </div>
   </div>
 </header>
 
@@ -317,7 +327,7 @@ fieldset.multi .hint{font-weight:400}
    เว้นว่างไว้ = โหมดตัวอย่าง (ข้อมูลทดลอง ไม่บันทึกจริง)
    ============================================================ */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbyWQXeKPSk-6_FQaF4e4n_q9_hoG2iCjeyurZhDNnqYtriYPDYElj2UWUuOKgodaWmRqA/exec'   // เช่น 'https://script.google.com/macros/s/AKfycb.../exec'
+  API_URL: 'https://script.google.com/macros/s/AKfycbyWQXeKPSk-6_FQaF4e4n_q9_hoG2iCjeyurZhDNnqYtriYPDYElj2UWUuOKgodaWmRqA/exec'
 };
 
 /* ตัวเลือกใน dropdown (แก้ไขได้ที่นี่ ควรตรงกับ dropdown ใน Google Sheet) */
@@ -333,10 +343,17 @@ const LABELS = {
   id:'เลขประจำตัว', cls:'ชั้นเรียน', title:'คำนำหน้า', first:'ชื่อ', last:'นามสกุล',
   delay:'พัฒนาการช้าด้าน', pickup:'ผู้มารับ-ส่ง', guardian:'ผู้ปกครอง/ผู้ดูแล', income:'รายได้ ผปค.'
 };
+const FIELDS = ['id','cls','title','first','last','delay','pickup','guardian','income'];
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const CACHE_KEY = 'sm_list';
+const TIMEOUT_MS = 30000;
 
 /* ---------- state ---------- */
-let students = [];
+let students = [];          // full list
+let byId = new Map();       // id -> student (O(1) lookup)
 let filtered = [];
+let lastRaw = '';           // JSON of the list, used to skip pointless re-renders
+let currentView = '';
 let page = 1;
 let pageSize = 15;
 let viewingId = null;
@@ -344,11 +361,15 @@ let viewingId = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const demoMode = !CONFIG.API_URL;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/* ---------- API (Google Apps Script) ---------- */
+/* ---------- session helpers ---------- */
 function getPass(){ try { return sessionStorage.getItem('sm_pass') || ''; } catch(e){ return ''; } }
 function setPass(v){ try { v ? sessionStorage.setItem('sm_pass', v) : sessionStorage.removeItem('sm_pass'); } catch(e){} }
+function clearCache(){ try { sessionStorage.removeItem(CACHE_KEY); } catch(e){} lastRaw = ''; }
+function storeCache(raw){ if (demoMode) return; try { sessionStorage.setItem(CACHE_KEY, raw); } catch(e){} }
 
+/* ---------- demo data ---------- */
 let demoData = null;
 function makeDemo(){
   const boys = ['กิตติ','ธนา','พีรพัฒน์','ภูมิ','ณัฐ','อธิป'];
@@ -370,9 +391,29 @@ function makeDemo(){
   return rows;
 }
 
+/* ---------- API (Google Apps Script) ---------- */
+async function post(action, payload){
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // avoids CORS preflight with Apps Script
+      body: JSON.stringify({ action, passcode: getPass(), ...payload }),
+      signal: ctl.signal
+    });
+    if (!res.ok) throw new Error('network');
+    return await res.json();
+  } catch (e){
+    throw new Error(e.name === 'AbortError' ? 'timeout' : 'network');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function api(action, payload = {}){
   if (demoMode){
-    await new Promise(r => setTimeout(r, 350));
+    await sleep(350);
     if (!demoData) demoData = makeDemo();
     if (action === 'list') return { ok:true, students: demoData.map(s => ({...s})) };
     if (action === 'update'){
@@ -382,21 +423,22 @@ async function api(action, payload = {}){
       return { ok:true };
     }
   }
-  const res = await fetch(CONFIG.API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // avoids CORS preflight with Apps Script
-    body: JSON.stringify({ action, passcode: getPass(), ...payload })
-  });
-  if (!res.ok) throw new Error('network');
-  const data = await res.json();
+  // reads are safe to retry once (Apps Script cold starts sometimes fail the first call)
+  let data;
+  for (let n = 0; ; n++){
+    try { data = await post(action, payload); break; }
+    catch (e){ if (action !== 'list' || n >= 1) throw e; await sleep(600); }
+  }
   if (!data.ok) throw new Error(data.error || 'error');
   return data;
 }
 
 /* ---------- views ---------- */
 function showView(name){
+  currentView = name;
   ['login','list','edit'].forEach(v => $(v + 'View').hidden = v !== name);
   $('exportBtn').hidden = name !== 'list' || !students.length;
+  $('refreshBtn').hidden = name !== 'list';
   window.scrollTo(0, 0);
 }
 
@@ -408,21 +450,64 @@ function toast(msg, type = ''){
   toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
 }
 
-/* ---------- load ---------- */
-async function loadData(){
-  $('loading').hidden = false; $('tbl').hidden = true; $('empty').hidden = true; $('foot').hidden = true;
-  $('loadBanner').hidden = true;
+/* ---------- data ---------- */
+// search text is built once per student (non-enumerable, so it never goes to JSON / the server)
+function prep(s){
+  Object.defineProperty(s, '_q', { value: `${s.id} ${s.first} ${s.last}`.toLowerCase(), writable: true, configurable: true });
+  return s;
+}
+
+// returns true when the list actually changed
+function setStudents(list){
+  const raw = JSON.stringify(list);
+  if (raw === lastRaw) return false;
+  lastRaw = raw;
+  students = list.map(prep);
+  byId = new Map(students.map(s => [s.id, s]));
+  buildClassFilter();
+  runFilter(true);
+  storeCache(raw);
+  return true;
+}
+
+// show the last known list instantly (same browser tab only), then refresh in the background
+function hydrateFromCache(){
+  if (demoMode || !getPass()) return false;
   try {
-    const r = await api('list');
-    students = r.students;
-    buildClassFilter();
-    applyFilter();
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list) || !list.length) return false;
+    setStudents(list);
+    return true;
+  } catch(e){ return false; }
+}
+
+async function loadData(force){
+  const hadCache = !force && hydrateFromCache();
+  $('loadBanner').hidden = true;
+
+  if (hadCache){
+    showView(currentView === 'login' ? 'list' : (currentView || 'list'));
     route();
+  } else {
+    $('loading').hidden = false; $('tbl').hidden = true; $('empty').hidden = true; $('foot').hidden = true;
+  }
+
+  try {
+    const r = await api('list', force ? { force: true } : {});
+    const changed = setStudents(r.students);
+    if (!hadCache) route();
+    else if (changed && currentView === 'list') renderList();   // never touch the edit form while someone is typing
   } catch (e){
     if (e.message === 'unauthorized'){
-      setPass('');
-      $('loginErr').textContent = getPass() ? '' : 'รหัสผ่านไม่ถูกต้อง';
+      setPass(''); clearCache(); students = []; byId = new Map(); filtered = [];
+      $('loginErr').textContent = 'รหัสผ่านไม่ถูกต้อง';
       showView('login');
+      return;
+    }
+    if (hadCache){
+      toast('อัปเดตข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลที่โหลดไว้ก่อนหน้า', 'err');
       return;
     }
     $('loading').hidden = true;
@@ -441,24 +526,42 @@ function buildClassFilter(){
 }
 
 /* ---------- list ---------- */
-function applyFilter(keepPage){
+function runFilter(keepPage){
   const q = $('q').value.trim().toLowerCase();
   const cls = $('clsFilter').value;
-  filtered = students.filter(s => {
-    if (cls && s.cls !== cls) return false;
-    if (!q) return true;
-    return s.id.toLowerCase().includes(q) || s.first.toLowerCase().includes(q) ||
-           s.last.toLowerCase().includes(q) || (s.first + ' ' + s.last).toLowerCase().includes(q);
-  });
+  filtered = students.filter(s => (!cls || s.cls === cls) && (!q || s._q.includes(q)));
   if (!keepPage) page = 1;
-  renderList();
 }
+function applyFilter(keepPage){ runFilter(keepPage); renderList(); }
+
+const ICON_VIEW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>';
 
 const plain = v => v ? esc(v) : '<span class="nil">—</span>';
+const splitMulti = v => String(v || '').split(/\s*,\s*/).map(x => x.trim()).filter(Boolean);
 const delayCell = v => {
   const items = splitMulti(v);
   return items.length ? items.map(x => `<span class="tag">${esc(x)}</span>`).join('') : '<span class="nil">—</span>';
 };
+
+function rowHtml(s){
+  const id = esc(s.id);
+  return `<tr>
+      <td class="id nw" data-label="เลขประจำตัว">${id}</td>
+      <td class="nw" data-label="ชั้นเรียน"><span class="chip">${esc(s.cls) || '—'}</span></td>
+      <td class="nw" data-label="คำนำหน้า">${esc(s.title)}</td>
+      <td class="nw" data-label="ชื่อ">${esc(s.first)}</td>
+      <td class="nw" data-label="นามสกุล">${esc(s.last)}</td>
+      <td class="delay" data-label="พัฒนาการช้าด้าน">${delayCell(s.delay)}</td>
+      <td data-label="ผู้มารับ-ส่ง">${plain(s.pickup)}</td>
+      <td data-label="ผู้ปกครอง/ผู้ดูแล">${plain(s.guardian)}</td>
+      <td data-label="รายได้ ผปค.">${plain(s.income)}</td>
+      <td class="act">
+        <button class="btn btn-view" data-act="view" data-id="${id}" type="button" title="ดูข้อมูล" aria-label="ดูข้อมูล">${ICON_VIEW}<span class="lbl">ดู</span></button>
+        <button class="btn btn-edit" data-act="edit" data-id="${id}" type="button" title="แก้ไขข้อมูล" aria-label="แก้ไขข้อมูล">${ICON_EDIT}<span class="lbl">แก้ไข</span></button>
+      </td>
+    </tr>`;
+}
 
 function renderList(){
   $('loading').hidden = true;
@@ -474,25 +577,7 @@ function renderList(){
 
   const start = (page - 1) * pageSize;
   const rows = filtered.slice(start, start + pageSize);
-  $('tbody').innerHTML = rows.map(s => `
-    <tr>
-      <td class="id nw" data-label="เลขประจำตัว">${esc(s.id)}</td>
-      <td class="nw" data-label="ชั้นเรียน"><span class="chip">${esc(s.cls) || '—'}</span></td>
-      <td class="nw" data-label="คำนำหน้า">${esc(s.title)}</td>
-      <td class="nw" data-label="ชื่อ">${esc(s.first)}</td>
-      <td class="nw" data-label="นามสกุล">${esc(s.last)}</td>
-      <td class="delay" data-label="พัฒนาการช้าด้าน">${delayCell(s.delay)}</td>
-      <td data-label="ผู้มารับ-ส่ง">${plain(s.pickup)}</td>
-      <td data-label="ผู้ปกครอง/ผู้ดูแล">${plain(s.guardian)}</td>
-      <td data-label="รายได้ ผปค.">${plain(s.income)}</td>
-      <td class="act">
-        <button class="btn btn-view" data-act="view" data-id="${esc(s.id)}" type="button" title="ดูข้อมูล" aria-label="ดูข้อมูล">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">ดู</span></button>
-        <button class="btn btn-edit" data-act="edit" data-id="${esc(s.id)}" type="button" title="แก้ไขข้อมูล" aria-label="แก้ไขข้อมูล">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg><span class="lbl">แก้ไข</span></button>
-      </td>
-    </tr>`).join('');
-
+  $('tbody').innerHTML = rows.map(rowHtml).join('');
   $('count').textContent = `แสดง ${start + 1}–${start + rows.length} จากทั้งหมด ${total} คน`;
   renderPager(pages);
 }
@@ -513,13 +598,12 @@ function renderPager(pages){
 
 /* ---------- view modal ---------- */
 function openView(id){
-  const s = students.find(x => x.id === id);
+  const s = byId.get(id);
   if (!s) return;
   viewingId = id;
   $('dlgWho').textContent = `${s.title} ${s.first} ${s.last}`.trim();
   $('dlgSub').textContent = `เลขประจำตัว ${s.id} · ชั้น ${s.cls || '—'}`;
-  const fields = ['id','cls','title','first','last','delay','pickup','guardian','income'];
-  $('dlgInfo').innerHTML = fields.map(k =>
+  $('dlgInfo').innerHTML = FIELDS.map(k =>
     `<dt>${LABELS[k]}</dt><dd>${s[k] ? (k === 'delay' ? splitMulti(s[k]).map(esc).join('<br>') : esc(s[k])) : '<span class="nil">ยังไม่ระบุ</span>'}</dd>`).join('');
   $('viewDlg').showModal();
 }
@@ -533,9 +617,7 @@ function fillSelect(el, list, current, blankLabel){
   el.value = current || '';
 }
 
-/* multi-select values are stored in one cell as "a, b, c" (same as Google Sheets multi-select dropdown chips) */
-const splitMulti = v => String(v || '').split(/\s*,\s*/).map(x => x.trim()).filter(Boolean);
-
+/* multi-select values are stored in one cell as "a, b, c" */
 function fillChecks(el, list, currentStr){
   const cur = splitMulti(currentStr);
   const opts = [...list];
@@ -545,7 +627,7 @@ function fillChecks(el, list, currentStr){
 }
 
 function renderEdit(id){
-  const s = students.find(x => x.id === id);
+  const s = byId.get(id);
   if (!s){ toast('ไม่พบนักเรียนรหัสนี้', 'err'); location.hash = '#/'; return; }
   $('editSub').textContent = `${s.title} ${s.first} ${s.last}`.trim();
   $('f_id').value = s.id;
@@ -573,7 +655,8 @@ async function saveEdit(ev){
   if (!ok){ toast('กรุณากรอกข้อมูลที่จำเป็นให้ครบ', 'err'); return; }
 
   // class / title / names are read-only: keep the stored values
-  const orig = students.find(x => x.id === $('f_id').value);
+  const orig = byId.get($('f_id').value);
+  if (!orig){ toast('ไม่พบนักเรียนรหัสนี้', 'err'); return; }
   const s = {
     ...orig,
     delay: [...document.querySelectorAll('#f_delay input:checked')].map(i => i.value).join(', '),
@@ -582,10 +665,12 @@ async function saveEdit(ev){
   $('saveBtn').disabled = true; $('saveBtn').textContent = 'กำลังบันทึก…';
   try {
     await api('update', { student: s });
-    const i = students.findIndex(x => x.id === s.id);
+    const i = students.indexOf(orig);
+    prep(s);
     if (i >= 0) students[i] = s;
-    buildClassFilter();
-    applyFilter(true);
+    byId.set(s.id, s);
+    lastRaw = JSON.stringify(students); storeCache(lastRaw);
+    runFilter(true);                       // the hash change below re-renders the list once
     toast('บันทึกข้อมูลเรียบร้อยแล้ว', 'ok');
     location.hash = '#/';
   } catch (e){
@@ -594,16 +679,39 @@ async function saveEdit(ev){
   }
 }
 
-/* ---------- export ---------- */
-function exportExcel(){
-  if (!window.XLSX){ toast('โหลดตัวส่งออก Excel ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', 'err'); return; }
-  const keys = ['id','cls','title','first','last','delay','pickup','guardian','income'];
-  const rows = filtered.map(s => Object.fromEntries(keys.map(k => [LABELS[k], s[k]])));
-  const ws = XLSX.utils.json_to_sheet(rows, { header: keys.map(k => LABELS[k]) });
+/* ---------- export (Excel library is loaded only when needed, ~900 KB) ---------- */
+let xlsxPromise = null;
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve();
+  if (!xlsxPromise){
+    xlsxPromise = new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = XLSX_URL;
+      el.onload = resolve;
+      el.onerror = () => { xlsxPromise = null; el.remove(); reject(new Error('xlsx')); };
+      document.head.appendChild(el);
+    });
+  }
+  return xlsxPromise;
+}
+
+async function exportExcel(){
+  const btn = $('exportBtn');
+  btn.disabled = true;
+  try {
+    await loadXLSX();
+  } catch(e){
+    btn.disabled = false;
+    toast('โหลดตัวส่งออก Excel ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', 'err');
+    return;
+  }
+  const aoa = [FIELDS.map(k => LABELS[k]), ...filtered.map(s => FIELDS.map(k => s[k]))];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [14, 12, 12, 18, 20, 36, 14, 18, 20].map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'นักเรียน');
   XLSX.writeFile(wb, `students_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  btn.disabled = false;
 }
 
 /* ---------- routing ---------- */
@@ -621,7 +729,8 @@ $('q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeo
 $('clsFilter').addEventListener('change', () => applyFilter());
 $('pageSize').addEventListener('change', e => { pageSize = +e.target.value; page = 1; renderList(); });
 $('clearBtn').addEventListener('click', () => { $('q').value = ''; $('clsFilter').value = ''; applyFilter(); });
-$('retryBtn').addEventListener('click', loadData);
+$('retryBtn').addEventListener('click', () => loadData(true));
+$('refreshBtn').addEventListener('click', () => loadData(true));
 $('pager').addEventListener('click', e => {
   const b = e.target.closest('button[data-p]');
   if (!b || b.disabled) return;
@@ -640,13 +749,16 @@ $('dlgEdit').addEventListener('click', () => { location.hash = '#/edit/' + encod
 $('viewDlg').addEventListener('click', e => { if (e.target === $('viewDlg')) $('viewDlg').close(); });
 $('editForm').addEventListener('submit', saveEdit);
 $('exportBtn').addEventListener('click', exportExcel);
+['pointerenter', 'focus'].forEach(ev =>        // start downloading the Excel library as soon as the user shows interest
+  $('exportBtn').addEventListener(ev, () => loadXLSX().catch(() => {}), { once: true }));
 $('loginForm').addEventListener('submit', e => {
   e.preventDefault();
+  clearCache();
   setPass($('passInput').value);
   $('passInput').value = '';
   $('loginErr').textContent = '';
   showView('list');
-  loadData();
+  loadData(true);
 });
 window.addEventListener('hashchange', route);
 
