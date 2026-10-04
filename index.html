@@ -344,8 +344,9 @@ const LABELS = {
   delay:'พัฒนาการช้าด้าน', pickup:'ผู้มารับ-ส่ง', guardian:'ผู้ปกครอง/ผู้ดูแล', income:'รายได้ ผปค.'
 };
 const FIELDS = ['id','cls','title','first','last','delay','pickup','guardian','income'];
+const EDITABLE = ['delay','pickup','guardian','income'];
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-const CACHE_KEY = 'sm_list';
+const CACHE_KEY = 'sm_list2';
 const TIMEOUT_MS = 30000;
 
 /* ---------- state ---------- */
@@ -353,10 +354,18 @@ let students = [];          // full list
 let byId = new Map();       // id -> student (O(1) lookup)
 let filtered = [];
 let lastRaw = '';           // JSON of the list, used to skip pointless re-renders
+let curV = '';              // server version of the list we hold (lets the server answer "same")
 let currentView = '';
 let page = 1;
 let pageSize = 15;
 let viewingId = null;
+
+/* saves run in the background (optimistic UI) */
+const pending = new Map();   // id -> latest edited student not yet confirmed by the server
+const baseline = new Map();  // id -> last server-confirmed student (used to undo a failed save)
+const chains = new Map();    // id -> promise chain, so saves of one student stay in order
+let inflight = 0;
+let hadFail = false;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -366,8 +375,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 /* ---------- session helpers ---------- */
 function getPass(){ try { return sessionStorage.getItem('sm_pass') || ''; } catch(e){ return ''; } }
 function setPass(v){ try { v ? sessionStorage.setItem('sm_pass', v) : sessionStorage.removeItem('sm_pass'); } catch(e){} }
-function clearCache(){ try { sessionStorage.removeItem(CACHE_KEY); } catch(e){} lastRaw = ''; }
-function storeCache(raw){ if (demoMode) return; try { sessionStorage.setItem(CACHE_KEY, raw); } catch(e){} }
+function clearCache(){ try { sessionStorage.removeItem(CACHE_KEY); } catch(e){} lastRaw = ''; curV = ''; }
+function persist(){
+  if (demoMode || !lastRaw) return;
+  try { sessionStorage.setItem(CACHE_KEY, '{"v":' + JSON.stringify(curV) + ',"list":' + lastRaw + '}'); } catch(e){}
+}
 
 /* ---------- demo data ---------- */
 let demoData = null;
@@ -415,7 +427,7 @@ async function api(action, payload = {}){
   if (demoMode){
     await sleep(350);
     if (!demoData) demoData = makeDemo();
-    if (action === 'list') return { ok:true, students: demoData.map(s => ({...s})) };
+    if (action === 'list') return { ok:true, v:'demo', students: demoData.map(s => ({...s})) };
     if (action === 'update'){
       const i = demoData.findIndex(s => s.id === payload.student.id);
       if (i < 0) throw new Error('not_found');
@@ -423,11 +435,15 @@ async function api(action, payload = {}){
       return { ok:true };
     }
   }
-  // reads are safe to retry once (Apps Script cold starts sometimes fail the first call)
+  // one retry on a failed connection: Apps Script cold starts sometimes fail the first call.
+  // (an update sets absolute values, so repeating it is harmless)
   let data;
   for (let n = 0; ; n++){
     try { data = await post(action, payload); break; }
-    catch (e){ if (action !== 'list' || n >= 1) throw e; await sleep(600); }
+    catch (e){
+      if (n >= 1 || (action !== 'list' && e.message !== 'network')) throw e;
+      await sleep(600);
+    }
   }
   if (!data.ok) throw new Error(data.error || 'error');
   return data;
@@ -443,11 +459,11 @@ function showView(name){
 }
 
 let toastTimer;
-function toast(msg, type = ''){
+function toast(msg, type = '', ms = 3200){
   const t = $('toast');
   t.textContent = msg; t.className = 'toast ' + type; t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+  if (ms > 0) toastTimer = setTimeout(() => { t.hidden = true; }, ms);
 }
 
 /* ---------- data ---------- */
@@ -457,8 +473,15 @@ function prep(s){
   return s;
 }
 
+// server sends compact rows (arrays); turn them into objects
+function toObjects(keys, rows){
+  const n = keys.length;
+  return rows.map(r => { const o = {}; for (let i = 0; i < n; i++) o[keys[i]] = r[i]; return o; });
+}
+
 // returns true when the list actually changed
 function setStudents(list){
+  if (pending.size) list = list.map(r => pending.get(r.id) || r);   // keep edits that are still saving
   const raw = JSON.stringify(list);
   if (raw === lastRaw) return false;
   lastRaw = raw;
@@ -466,7 +489,6 @@ function setStudents(list){
   byId = new Map(students.map(s => [s.id, s]));
   buildClassFilter();
   runFilter(true);
-  storeCache(raw);
   return true;
 }
 
@@ -476,29 +498,36 @@ function hydrateFromCache(){
   try {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return false;
-    const list = JSON.parse(raw);
-    if (!Array.isArray(list) || !list.length) return false;
-    setStudents(list);
+    const obj = JSON.parse(raw);
+    if (!obj || !Array.isArray(obj.list) || !obj.list.length) return false;
+    curV = typeof obj.v === 'string' ? obj.v : '';
+    setStudents(obj.list);
     return true;
   } catch(e){ return false; }
 }
 
 async function loadData(force){
   const hadCache = !force && hydrateFromCache();
+  const warm = hadCache || students.length > 0;      // something is already on screen
   $('loadBanner').hidden = true;
 
   if (hadCache){
     showView(currentView === 'login' ? 'list' : (currentView || 'list'));
     route();
-  } else {
+  } else if (!warm){
     $('loading').hidden = false; $('tbl').hidden = true; $('empty').hidden = true; $('foot').hidden = true;
   }
+  if (force) $('refreshBtn').disabled = true;
 
   try {
-    const r = await api('list', force ? { force: true } : {});
-    const changed = setStudents(r.students);
-    if (!hadCache) route();
+    const r = await api('list', force ? { v: curV, force: true } : { v: curV });
+    let changed = false;
+    if (!r.same) changed = setStudents(r.rows ? toObjects(r.keys, r.rows) : r.students);
+    curV = r.v || '';
+    persist();
+    if (!warm) route();
     else if (changed && currentView === 'list') renderList();   // never touch the edit form while someone is typing
+    if (force && warm) toast('อัปเดตข้อมูลแล้ว', 'ok', 1800);
   } catch (e){
     if (e.message === 'unauthorized'){
       setPass(''); clearCache(); students = []; byId = new Map(); filtered = [];
@@ -506,7 +535,7 @@ async function loadData(force){
       showView('login');
       return;
     }
-    if (hadCache){
+    if (warm){
       toast('อัปเดตข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลที่โหลดไว้ก่อนหน้า', 'err');
       return;
     }
@@ -514,6 +543,8 @@ async function loadData(force){
     $('loadBannerMsg').textContent = 'โหลดข้อมูลไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตหรือ URL ของ Apps Script แล้วลองใหม่อีกครั้ง';
     $('loadBanner').hidden = false;
     showView('list');
+  } finally {
+    $('refreshBtn').disabled = false;
   }
 }
 
@@ -643,7 +674,17 @@ function renderEdit(id){
   $('saveBtn').disabled = false; $('saveBtn').textContent = 'บันทึกข้อมูล';
 }
 
-async function saveEdit(ev){
+/* put a student into the local list (used for the instant update and for undo) */
+function applyLocal(s){
+  const i = students.findIndex(x => x.id === s.id);
+  if (i >= 0) students[i] = s;
+  byId.set(s.id, s);
+  lastRaw = JSON.stringify(students);
+  persist();
+  runFilter(true);
+}
+
+function saveEdit(ev){
   ev.preventDefault();
   const required = { pickup:'กรุณาเลือกผู้มารับ-ส่ง', guardian:'กรุณาเลือกผู้ปกครอง/ผู้ดูแล', income:'กรุณาเลือกรายได้ ผปค.' };
   let ok = true;
@@ -657,25 +698,58 @@ async function saveEdit(ev){
   // class / title / names are read-only: keep the stored values
   const orig = byId.get($('f_id').value);
   if (!orig){ toast('ไม่พบนักเรียนรหัสนี้', 'err'); return; }
-  const s = {
+  const s = prep({
     ...orig,
     delay: [...document.querySelectorAll('#f_delay input:checked')].map(i => i.value).join(', '),
     pickup: $('f_pickup').value, guardian: $('f_guardian').value, income: $('f_income').value
-  };
-  $('saveBtn').disabled = true; $('saveBtn').textContent = 'กำลังบันทึก…';
-  try {
-    await api('update', { student: s });
-    const i = students.indexOf(orig);
-    prep(s);
-    if (i >= 0) students[i] = s;
-    byId.set(s.id, s);
-    lastRaw = JSON.stringify(students); storeCache(lastRaw);
-    runFilter(true);                       // the hash change below re-renders the list once
-    toast('บันทึกข้อมูลเรียบร้อยแล้ว', 'ok');
+  });
+
+  if (!EDITABLE.some(k => s[k] !== orig[k])){      // nothing changed: no need to call the server
+    toast('ไม่มีการเปลี่ยนแปลงข้อมูล');
     location.hash = '#/';
-  } catch (e){
-    $('saveBtn').disabled = false; $('saveBtn').textContent = 'บันทึกข้อมูล';
-    toast(e.message === 'unauthorized' ? 'รหัสผ่านหมดอายุ กรุณาเข้าสู่ระบบใหม่' : 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'err');
+    return;
+  }
+
+  // instant: show the new values and go back to the list, save in the background
+  if (!baseline.has(s.id)) baseline.set(s.id, orig);
+  pending.set(s.id, s);
+  applyLocal(s);
+  location.hash = '#/';
+  queueSave(s);
+}
+
+function queueSave(s){
+  inflight++;
+  toast('กำลังบันทึกข้อมูล…' + (inflight > 1 ? ` (${inflight})` : ''), '', 0);
+
+  const run = (chains.get(s.id) || Promise.resolve()).then(() => api('update', { student: s }));
+  chains.set(s.id, run.catch(() => {}));
+
+  run.then(() => {
+    baseline.set(s.id, s);
+    if (pending.get(s.id) === s){ pending.delete(s.id); baseline.delete(s.id); chains.delete(s.id); }
+    finishSave(null);
+  }).catch(e => {
+    if (pending.get(s.id) === s){                    // latest edit failed: undo it on screen
+      const back = baseline.get(s.id);
+      pending.delete(s.id); baseline.delete(s.id); chains.delete(s.id);
+      if (back){ applyLocal(back); if (currentView === 'list') renderList(); }
+    }
+    finishSave(e);
+  });
+}
+
+function finishSave(err){
+  inflight--;
+  if (err) hadFail = err.message === 'unauthorized' ? 'auth' : (hadFail || 'fail');
+  if (inflight > 0){ toast(`กำลังบันทึกข้อมูล… (${inflight})`, '', 0); return; }
+  if (hadFail){
+    toast(hadFail === 'auth'
+      ? 'รหัสผ่านหมดอายุ กรุณาเข้าสู่ระบบใหม่ (ข้อมูลที่บันทึกไม่สำเร็จถูกคืนค่าเดิม)'
+      : 'บันทึกไม่สำเร็จ ข้อมูลถูกคืนค่าเดิม กรุณาแก้ไขใหม่อีกครั้ง', 'err', 6000);
+    hadFail = false;
+  } else {
+    toast('บันทึกข้อมูลเรียบร้อยแล้ว', 'ok');
   }
 }
 
@@ -758,9 +832,12 @@ $('loginForm').addEventListener('submit', e => {
   $('passInput').value = '';
   $('loginErr').textContent = '';
   showView('list');
-  loadData(true);
+  loadData();                                   // uses the server cache (no forced sheet read)
 });
 window.addEventListener('hashchange', route);
+window.addEventListener('beforeunload', e => {  // warn if a save is still on its way
+  if (pending.size){ e.preventDefault(); e.returnValue = ''; }
+});
 
 /* ---------- start ---------- */
 $('demoTag').hidden = !demoMode;
